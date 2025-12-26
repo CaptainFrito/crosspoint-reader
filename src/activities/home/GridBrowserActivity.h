@@ -21,6 +21,7 @@ struct FileInfo {
     std::string name;
     std::string basename;
     FileType type;
+    std::string thumbPath;
 };
 
 class GridBrowserActivity final : public Activity {
@@ -36,12 +37,14 @@ class GridBrowserActivity final : public Activity {
   const std::function<void(const std::string&)> onSelect;
   const std::function<void()> onGoHome;
 
-  static void taskTrampoline(void* param);
+  static void displayTaskTrampoline(void* param);
   [[noreturn]] void displayTaskLoop();
+  static void loadThumbsTaskTrampoline(void* param);
   void render(bool clear) const;
   void update(bool render) const;
   void loadFiles();
   void drawSelectionRectangle(int tileIndex, bool black) const;
+  std::string loadEpubThumb(std::string path);
 
  public:
   explicit GridBrowserActivity(GfxRenderer& renderer, InputManager& inputManager,

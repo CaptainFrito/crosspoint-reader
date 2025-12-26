@@ -17,7 +17,7 @@ std::unique_ptr<Epub> ReaderActivity::loadEpub(const std::string& path) {
   auto epub = std::unique_ptr<Epub>(new Epub(path, "/.crosspoint"));
   if (epub->load()) {
     // Pre-generate cover BMP for sleep screen (so it's cached when entering sleep)
-    if (!epub->generateCoverBmp()) {
+    if (!epub->generateCoverBmp(false)) {
       Serial.printf("[%lu] [RDR] Cover BMP generation skipped or failed\n", millis());
     }
     return epub;

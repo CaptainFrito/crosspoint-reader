@@ -3,6 +3,7 @@
 #include <GfxRenderer.h>
 #include <SD.h>
 #include <InputManager.h>
+#include <Epub.h>
 
 #include "config.h"
 #include "../../images/FolderIcon.h"
@@ -33,9 +34,30 @@ void GridBrowserActivity::sortFileList(std::vector<FileInfo>& strs) {
   });
 }
 
-void GridBrowserActivity::taskTrampoline(void* param) {
+void GridBrowserActivity::displayTaskTrampoline(void* param) {
   auto* self = static_cast<GridBrowserActivity*>(param);
   self->displayTaskLoop();
+}
+
+// void GridBrowserActivity::loadThumbsTaskTrampoline(void* param) {
+//   auto* self = static_cast<GridBrowserActivity*>(param);
+//   self->displayTaskLoop();
+// }
+
+std::string GridBrowserActivity::loadEpubThumb(std::string path) {
+  File file;
+  Epub epubFile(path, "/.crosspoint");
+  if (!epubFile.load()) {
+    Serial.printf("[%lu] Failed to load epub: %s\n", millis(), path.c_str());
+    return "";
+  }
+  if (!epubFile.generateCoverBmp(true)) {
+    Serial.printf("[%lu] Failed to generate epub thumb\n", millis());
+    return "";
+  }
+  std::string thumbPath = epubFile.getThumbBmpPath();
+  Serial.printf("[%lu] epub has thumb at %s\n", millis(), thumbPath.c_str());
+  return thumbPath;
 }
 
 void GridBrowserActivity::loadFiles() {
@@ -44,6 +66,7 @@ void GridBrowserActivity::loadFiles() {
   previousSelectorIndex = -1;
   page = 0;
   auto root = SD.open(basepath.c_str());
+  int count = 0;
   for (File file = root.openNextFile(); file; file = root.openNextFile()) {
     const std::string filename = std::string(file.name());
     if (filename.empty() || filename[0] == '.') {
@@ -52,7 +75,7 @@ void GridBrowserActivity::loadFiles() {
     }
 
     if (file.isDirectory()) {
-      files.emplace_back(FileInfo{ filename, filename, F_DIRECTORY });
+      files.emplace_back(FileInfo{ filename, filename, F_DIRECTORY, "" });
     } else {
       FileType type = F_FILE;
       size_t dot = filename.find_first_of('.');
@@ -64,15 +87,22 @@ void GridBrowserActivity::loadFiles() {
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c){ return std::tolower(c); });
         if (ext == ".epub") {
           type = F_EPUB;
-        } else if (ext == ".thumb.bmp") {
+            // xTaskCreate(&GridBrowserActivity::taskTrampoline, "GridFileBrowserTask",
+            //   2048,               // Stack size
+            //   this,               // Parameters
+            //   1,                  // Priority
+            //   &displayTaskHandle  // Task handle
+            // ); 
+        } else if (ext == ".bmp") {
           type = F_BMP;
         }
       }
       if (type != F_FILE) {
-        files.emplace_back(FileInfo{ filename, basename, type });
+        files.emplace_back(FileInfo{ filename, basename, type, "" });
       }
     }
     file.close();
+    count ++;
   }
   root.close();
   Serial.printf("Files loaded\n");
@@ -81,7 +111,6 @@ void GridBrowserActivity::loadFiles() {
 }
 
 void GridBrowserActivity::onEnter() {
-  Serial.printf("Enter grid\n");
   renderingMutex = xSemaphoreCreateMutex();
   
   basepath = "/";
@@ -92,7 +121,7 @@ void GridBrowserActivity::onEnter() {
   // Trigger first render
   renderRequired = true;
   
-  xTaskCreate(&GridBrowserActivity::taskTrampoline, "GridFileBrowserTask",
+  xTaskCreate(&GridBrowserActivity::displayTaskTrampoline, "GridFileBrowserTask",
               8192,               // Stack size
               this,               // Parameters
               1,                  // Priority
@@ -200,70 +229,37 @@ void GridBrowserActivity::render(bool clear) const {
     drawFullscreenWindowFrame(renderer, folderName);
   }
   
-  if (!files.empty()) {
-    bool hasGeyscaleBitmaps = false;
-    for (int pass = 0; pass < 3; pass++) {
-      if (pass > 0) {
-        renderer.clearScreen(0x00);
-        if (pass == 1) {
-          renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-        } else if (pass == 2) {
-          renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-        }
+  if (!files.empty()) {      
+    for (size_t i = 0; i < min(PAGE_ITEMS, files.size() - page * PAGE_ITEMS); i++) {
+      const auto file = files[i + page * PAGE_ITEMS];
+      
+      const int16_t tileX = gridLeftOffset + i % 3 * TILE_W;
+      const int16_t tileY = gridTopOffset + i / 3 * TILE_H;
+
+      if (file.type == F_DIRECTORY) {
+        constexpr int iconOffsetX = (TILE_W - FOLDERICON_WIDTH) / 2;
+        constexpr int iconOffsetY = (TILE_H - TILE_TEXT_H - FOLDERICON_HEIGHT) / 2;
+        renderer.drawIcon(FolderIcon, tileX + iconOffsetX, tileY + iconOffsetY, FOLDERICON_WIDTH, FOLDERICON_HEIGHT);
       }
 
-      for (size_t i = 0; i < min(PAGE_ITEMS, files.size() - page * PAGE_ITEMS); i++) {
-        const auto file = files[i + page * PAGE_ITEMS];
-        
-        const int16_t tileX = gridLeftOffset + i % 3 * TILE_W;
-        const int16_t tileY = gridTopOffset + i / 3 * TILE_H;
-
-        if (pass == 0) {
-          if (file.type == F_DIRECTORY) {
-            constexpr int iconOffsetX = (TILE_W - FOLDERICON_WIDTH) / 2;
-            constexpr int iconOffsetY = (TILE_H - TILE_TEXT_H - FOLDERICON_HEIGHT) / 2;
-            renderer.drawIcon(FolderIcon, tileX + iconOffsetX, tileY + iconOffsetY, FOLDERICON_WIDTH, FOLDERICON_HEIGHT);
+      if (!file.thumbPath.empty()) {
+        Serial.printf("Rendering file thumb: %s\n", file.thumbPath.c_str());
+        File bmpFile = SD.open(file.thumbPath.c_str());
+        if (bmpFile) {
+          Bitmap bitmap(bmpFile);
+          if (bitmap.parseHeaders() == BmpReaderError::Ok) {
+            constexpr int thumbOffsetX = (TILE_W - THUMB_W) / 2;
+            constexpr int thumbOffsetY = (TILE_H - TILE_TEXT_H - THUMB_H) / 2;
+            renderer.drawBitmap(bitmap, tileX + thumbOffsetX, tileY + thumbOffsetY, THUMB_W, THUMB_H);
           }
         }
-
-        if (file.type == F_BMP) {
-          File bmpFile = SD.open((basepath + "/" + file.name).c_str());
-          if (bmpFile) {
-            Bitmap bitmap(bmpFile);
-            if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-              if (bitmap.hasGreyscale()) {
-                hasGeyscaleBitmaps = true;
-              }
-              constexpr int thumbOffsetX = (TILE_W - THUMB_W) / 2;
-              constexpr int thumbOffsetY = (TILE_H - TILE_TEXT_H - THUMB_H) / 2;
-              renderer.drawBitmap(bitmap, tileX + thumbOffsetX, tileY + thumbOffsetY, THUMB_W, THUMB_H);
-            }
-          }
-        }
-        
-        if (pass == 0) {
-          renderer.drawTextInBox(UI_FONT_ID, tileX + TILE_PADDING, tileY + TILE_H - TILE_TEXT_H, TILE_W - 2 * TILE_PADDING, TILE_TEXT_H, file.basename.c_str(), true);
-        }
       }
-
-      if (pass == 0) {
-        update(false);
-        renderer.displayBuffer();
-        if (hasGeyscaleBitmaps) {
-          renderer.storeBwBuffer();
-        } else {
-          // we can skip grayscale passes if no bitmaps use it
-          break;
-        }
-      } else if (pass == 1) {
-        renderer.copyGrayscaleLsbBuffers();
-      } else {
-        renderer.copyGrayscaleMsbBuffers();
-        renderer.displayGrayBuffer();
-        renderer.setRenderMode(GfxRenderer::BW);
-        renderer.restoreBwBuffer();
-      }
+      
+      renderer.drawTextInBox(UI_FONT_ID, tileX + TILE_PADDING, tileY + TILE_H - TILE_TEXT_H, TILE_W - 2 * TILE_PADDING, TILE_TEXT_H, file.basename.c_str(), true);
     }
+
+    update(false);
+    renderer.displayBuffer();
   }
 } 
 
