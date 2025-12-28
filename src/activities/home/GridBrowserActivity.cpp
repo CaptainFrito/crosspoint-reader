@@ -18,8 +18,8 @@ constexpr int TILE_PADDING = 5;
 constexpr int THUMB_W = 90;
 constexpr int THUMB_H = 120;
 constexpr int TILE_TEXT_H = 60;
-constexpr int gridLeftOffset = 37;
-constexpr int gridTopOffset = 125;
+constexpr int GRID_OFFSET_LEFT = 37;
+constexpr int GRID_OFFSET_TOP = 125;
 }  // namespace
 
 inline int min(const int a, const int b) { return a < b ? a : b; }
@@ -39,10 +39,40 @@ void GridBrowserActivity::displayTaskTrampoline(void* param) {
   self->displayTaskLoop();
 }
 
-// void GridBrowserActivity::loadThumbsTaskTrampoline(void* param) {
-//   auto* self = static_cast<GridBrowserActivity*>(param);
-//   self->displayTaskLoop();
-// }
+void GridBrowserActivity::loadThumbsTaskTrampoline(void* param) {
+  auto* self = static_cast<GridBrowserActivity*>(param);
+  self->loadThumbsTaskLoop();
+}
+
+void GridBrowserActivity::loadThumbsTaskLoop() {
+  while (true) {
+    if (thumbsLoadingRequired) {
+      xSemaphoreTake(loadThumbsMutex, portMAX_DELAY);
+      loadThumbs();
+      xSemaphoreGive(loadThumbsMutex);
+      thumbsLoadingRequired = false;
+    }
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+}
+
+void GridBrowserActivity::loadThumbs() {
+  int thumbsCount = min(PAGE_ITEMS, files.size() - page * PAGE_ITEMS);
+  for (int i = 0; i < thumbsCount; i++) {
+    const auto file = files[i + page * PAGE_ITEMS];
+    if (file.type == F_EPUB) {
+      if (file.thumbPath.empty()) {
+        Serial.printf("[%lu] Loading thumb for epub: %s\n", millis(), file.name.c_str());
+        std::string thumbPath = loadEpubThumb(basepath + "/" + file.name);
+        if (!thumbPath.empty()) {
+          files[i + page * PAGE_ITEMS].thumbPath = thumbPath;
+        }
+        renderRequired = true;
+        taskYIELD();
+      }
+    }
+  }
+}
 
 std::string GridBrowserActivity::loadEpubThumb(std::string path) {
   File file;
@@ -87,12 +117,6 @@ void GridBrowserActivity::loadFiles() {
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c){ return std::tolower(c); });
         if (ext == ".epub") {
           type = F_EPUB;
-            // xTaskCreate(&GridBrowserActivity::taskTrampoline, "GridFileBrowserTask",
-            //   2048,               // Stack size
-            //   this,               // Parameters
-            //   1,                  // Priority
-            //   &displayTaskHandle  // Task handle
-            // ); 
         } else if (ext == ".bmp") {
           type = F_BMP;
         }
@@ -102,30 +126,32 @@ void GridBrowserActivity::loadFiles() {
       }
     }
     file.close();
-    count ++;
+    count++;
   }
   root.close();
-  Serial.printf("Files loaded\n");
   GridBrowserActivity::sortFileList(files);
-  Serial.printf("Files sorted\n");
 }
 
 void GridBrowserActivity::onEnter() {
   renderingMutex = xSemaphoreCreateMutex();
+  loadThumbsMutex = xSemaphoreCreateMutex();
   
-  loadFiles();
-  selectorIndex = 0;
   page = 0;
-  
-  // Trigger first render
-  renderRequired = true;
+  loadFiles();
+  onPageChanged();
   
   xTaskCreate(&GridBrowserActivity::displayTaskTrampoline, "GridFileBrowserTask",
-              8192,               // Stack size
-              this,               // Parameters
-              1,                  // Priority
-              &displayTaskHandle  // Task handle
+    8192,               // Stack size
+    this,               // Parameters
+    2,                  // Priority
+    &displayTaskHandle  // Task handle
   );
+  xTaskCreate(&GridBrowserActivity::loadThumbsTaskTrampoline, "LoadThumbsTask",
+    8192,               // Stack size
+    this,               // Parameters
+    1,                  // Priority
+    &loadThumbsTaskHandle  // Task handle
+  ); 
 }
 
 void GridBrowserActivity::onExit() {
@@ -139,7 +165,22 @@ void GridBrowserActivity::onExit() {
   }
   vSemaphoreDelete(renderingMutex);
   renderingMutex = nullptr;
+
+  if (loadThumbsTaskHandle) {
+    vTaskDelete(loadThumbsTaskHandle);
+    loadThumbsTaskHandle = nullptr;
+  }
+  vSemaphoreDelete(loadThumbsMutex);
+  loadThumbsMutex = nullptr;
+
   files.clear();
+}
+
+void GridBrowserActivity::onPageChanged() {
+  selectorIndex = 0;
+  previousSelectorIndex = -1;
+  renderRequired = true;
+  thumbsLoadingRequired = true;
 }
 
 void GridBrowserActivity::loop() {
@@ -160,7 +201,7 @@ void GridBrowserActivity::loop() {
       // open subfolder
       basepath += files[selected].name;
       loadFiles();
-      renderRequired = true;
+      onPageChanged();
     } else {
       onSelect(basepath + files[selected].name);
     }
@@ -169,7 +210,7 @@ void GridBrowserActivity::loop() {
       basepath.resize(basepath.rfind('/'));
       if (basepath.empty()) basepath = "/";
       loadFiles();
-      renderRequired = true;
+      onPageChanged();
     } else {
       // At root level, go back home
       onGoHome();
@@ -179,9 +220,7 @@ void GridBrowserActivity::loop() {
     if (selectorIndex == 0 || skipPage) {
       if (page > 0) {
         page--;
-        selectorIndex = 0;
-        previousSelectorIndex = -1;
-        renderRequired = true;
+        onPageChanged();
       }
     } else {
       selectorIndex--;
@@ -192,9 +231,7 @@ void GridBrowserActivity::loop() {
     if (selectorIndex == min(PAGE_ITEMS, files.size() - page * PAGE_ITEMS) - 1 || skipPage) {
       if (page < files.size() / PAGE_ITEMS) {
         page++;
-        selectorIndex = 0;
-        previousSelectorIndex = -1;
-        renderRequired = true;
+        onPageChanged();
       }
     } else {
       selectorIndex++;
@@ -205,16 +242,12 @@ void GridBrowserActivity::loop() {
 
 void GridBrowserActivity::displayTaskLoop() {
   while (true) {
-    if (renderRequired) {
+    if (renderRequired || updateRequired) {
+      bool didRequireRender = renderRequired;
       renderRequired = false;
-      xSemaphoreTake(renderingMutex, portMAX_DELAY);
-      render(true);
-      xSemaphoreGive(renderingMutex);
-    } else if (updateRequired) {
       updateRequired = false;
       xSemaphoreTake(renderingMutex, portMAX_DELAY);
-      // update(true);
-      render(false);
+      render(didRequireRender);
       xSemaphoreGive(renderingMutex);
     }
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -232,8 +265,8 @@ void GridBrowserActivity::render(bool clear) const {
     for (size_t i = 0; i < min(PAGE_ITEMS, files.size() - page * PAGE_ITEMS); i++) {
       const auto file = files[i + page * PAGE_ITEMS];
       
-      const int16_t tileX = gridLeftOffset + i % 3 * TILE_W;
-      const int16_t tileY = gridTopOffset + i / 3 * TILE_H;
+      const int16_t tileX = GRID_OFFSET_LEFT + i % 3 * TILE_W;
+      const int16_t tileY = GRID_OFFSET_TOP + i / 3 * TILE_H;
 
       if (file.type == F_DIRECTORY) {
         constexpr int iconOffsetX = (TILE_W - FOLDERICON_WIDTH) / 2;
@@ -263,7 +296,7 @@ void GridBrowserActivity::render(bool clear) const {
 } 
 
 void GridBrowserActivity::drawSelectionRectangle(int tileIndex, bool black) const {
-  renderer.drawRoundedRect(gridLeftOffset + tileIndex % 3 * TILE_W, gridTopOffset + tileIndex / 3 * TILE_H, TILE_W, TILE_H, 2, 5, black);
+  renderer.drawRoundedRect(GRID_OFFSET_LEFT + tileIndex % 3 * TILE_W, GRID_OFFSET_TOP + tileIndex / 3 * TILE_H, TILE_W, TILE_H, 2, 5, black);
 }
 
 void GridBrowserActivity::update(bool render) const {

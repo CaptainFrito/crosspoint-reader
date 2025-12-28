@@ -27,6 +27,8 @@ struct FileInfo {
 class GridBrowserActivity final : public Activity {
   TaskHandle_t displayTaskHandle = nullptr;
   SemaphoreHandle_t renderingMutex = nullptr;
+  TaskHandle_t loadThumbsTaskHandle = nullptr;
+  SemaphoreHandle_t loadThumbsMutex = nullptr;
   std::string basepath = "/";
   std::vector<FileInfo> files;
   int selectorIndex = 0;
@@ -34,6 +36,7 @@ class GridBrowserActivity final : public Activity {
   int page = 0;
   bool updateRequired = false;
   bool renderRequired = false;
+  bool thumbsLoadingRequired = false;
   const std::function<void(const std::string&)> onSelect;
   const std::function<void()> onGoHome;
 
@@ -45,6 +48,9 @@ class GridBrowserActivity final : public Activity {
   void loadFiles();
   void drawSelectionRectangle(int tileIndex, bool black) const;
   std::string loadEpubThumb(std::string path);
+  void loadThumbsTaskLoop();
+  void loadThumbs();
+  void onPageChanged();
 
  public:
   explicit GridBrowserActivity(GfxRenderer& renderer, InputManager& inputManager,
