@@ -2,8 +2,8 @@
 
 #include <GfxRenderer.h>
 
-#include "fontIds.h"
 #include "components/UITheme.h"
+#include "fontIds.h"
 
 void EpubReaderMenuActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
