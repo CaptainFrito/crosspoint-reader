@@ -3,6 +3,7 @@
 #include <GfxRenderer.h>
 
 #include "fontIds.h"
+#include "components/UITheme.h"
 
 void EpubReaderMenuActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
@@ -97,7 +98,7 @@ void EpubReaderMenuActivity::renderScreen() {
 
   // Footer / Hints
   const auto labels = mappedInput.mapLabels("« Back", "Select", "Up", "Down");
-  renderer.drawButtonHints(UI_10_FONT_ID, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  UITheme::drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
   renderer.displayBuffer();
 }
