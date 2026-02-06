@@ -3,6 +3,8 @@
 #include <GfxRenderer.h>
 #include <SDCardManager.h>
 
+#include <algorithm>
+
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -157,14 +159,14 @@ void MyLibraryActivity::loop() {
   int listSize = static_cast<int>(files.size());
   if (upReleased) {
     if (skipPage) {
-      selectorIndex = max(((selectorIndex / pageItems - 1) * pageItems), 0);
+      selectorIndex = std::max(static_cast<int>((selectorIndex / pageItems - 1) * pageItems), 0);
     } else {
       selectorIndex = (selectorIndex + listSize - 1) % listSize;
     }
     updateRequired = true;
   } else if (downReleased) {
     if (skipPage) {
-      selectorIndex = min(((selectorIndex / pageItems + 1) * pageItems), listSize - 1);
+      selectorIndex = std::min(static_cast<int>((selectorIndex / pageItems + 1) * pageItems), listSize - 1);
     } else {
       selectorIndex = (selectorIndex + 1) % listSize;
     }

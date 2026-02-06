@@ -268,7 +268,6 @@ void HomeActivity::render() {
     menuItems.insert(menuItems.begin() + 2, "OPDS Browser");
   }
 
-  Serial.printf("Home menu items count: %d\n", static_cast<int>(menuItems.size()));
   GUI.drawButtonMenu(
       renderer,
       Rect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing, pageWidth,
