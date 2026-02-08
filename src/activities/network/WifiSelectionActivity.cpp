@@ -530,7 +530,8 @@ void WifiSelectionActivity::renderNetworkList() const {
         });
   }
 
-  GUI.drawHelpText(renderer, Rect{0, pageHeight - metrics.buttonHintsHeight - 26, pageWidth, 20},
+  GUI.drawHelpText(renderer,
+                   Rect{0, pageHeight - metrics.buttonHintsHeight - metrics.contentSidePadding - 15, pageWidth, 20},
                    "* = Encrypted  ||| = Strength  + = Saved");
 
   const auto labels = mappedInput.mapLabels("« Back", "Connect", "Up", "Down");
