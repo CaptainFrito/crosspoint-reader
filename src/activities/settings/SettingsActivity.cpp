@@ -304,7 +304,8 @@ void SettingsActivity::render() const {
           valueText = std::to_string(SETTINGS.*(settingsList[i].valuePtr));
         }
         return valueText;
-      });
+      },
+      true);
 
   // Draw help text
   const auto labels = mappedInput.mapLabels("« Back", "Toggle", "Up", "Down");
