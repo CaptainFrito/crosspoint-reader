@@ -201,7 +201,8 @@ void KOReaderSettingsActivity::render() {
           return std::string(KOREADER_STORE.hasCredentials() ? "" : "[Set credentials first]");
         }
         return std::string("[Not Set]");
-      });
+      },
+      true);
 
   // Draw help text at bottom
   const auto labels = mappedInput.mapLabels("« Back", "Select", "Up", "Down");

@@ -175,7 +175,8 @@ void CalibreSettingsActivity::render() {
           return (strlen(SETTINGS.opdsPassword) > 0) ? "******" : "[Not Set]";
         }
         return "[Not Set]";
-      });
+      },
+      true);
 
   // Draw help text at bottom
   const auto labels = mappedInput.mapLabels("« Back", "Select", "Up", "Down");

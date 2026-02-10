@@ -61,7 +61,7 @@ void OtaUpdateActivity::onEnter() {
   renderingMutex = xSemaphoreCreateMutex();
 
   xTaskCreate(&OtaUpdateActivity::taskTrampoline, "OtaUpdateActivityTask",
-              2048,               // Stack size
+              4096,               // Stack size
               this,               // Parameters
               1,                  // Priority
               &displayTaskHandle  // Task handle
@@ -140,23 +140,28 @@ void OtaUpdateActivity::render() {
     renderer.drawCenteredText(UI_10_FONT_ID, top, "Checking for update...");
   } else if (state == WAITING_CONFIRMATION) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, "New update available!", true, EpdFontFamily::BOLD);
-    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, top + height + 10,
+    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, top + height + metrics.verticalSpacing,
                       "Current Version: " CROSSPOINT_VERSION);
-    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, top + height + 30,
+    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, top + height * 2 + metrics.verticalSpacing * 2,
                       ("New Version: " + updater.getLatestVersion()).c_str());
 
     const auto labels = mappedInput.mapLabels("Cancel", "Update", "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == UPDATE_IN_PROGRESS) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, "Updating...");
-    renderer.drawRect(metrics.contentSidePadding, top + height + 10, pageWidth - metrics.contentSidePadding * 2, 50);
-    renderer.fillRect(
-        metrics.contentSidePadding + 4, top + height + 14,
-        static_cast<int>(updaterProgress * static_cast<float>(pageWidth - metrics.contentSidePadding * 2 - 8)), 42);
-    renderer.drawCenteredText(UI_10_FONT_ID, top + height + 70,
+
+    int y = top + height + metrics.verticalSpacing;
+    GUI.drawProgressBar(
+        renderer,
+        Rect{metrics.contentSidePadding, y, pageWidth - metrics.contentSidePadding * 2, metrics.progressBarHeight},
+        static_cast<int>(updaterProgress * 100), 100);
+
+    y += metrics.progressBarHeight + metrics.verticalSpacing;
+    renderer.drawCenteredText(UI_10_FONT_ID, y,
                               (std::to_string(static_cast<int>(updaterProgress * 100)) + "%").c_str());
+    y += height + metrics.verticalSpacing;
     renderer.drawCenteredText(
-        UI_10_FONT_ID, top + height * 2 + 80,
+        UI_10_FONT_ID, y,
         (std::to_string(updater.getProcessedSize()) + " / " + std::to_string(updater.getTotalSize())).c_str());
   } else if (state == NO_UPDATE) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, "No update available", true, EpdFontFamily::BOLD);
@@ -164,7 +169,8 @@ void OtaUpdateActivity::render() {
     renderer.drawCenteredText(UI_10_FONT_ID, top, "Update failed", true, EpdFontFamily::BOLD);
   } else if (state == FINISHED) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, "Update complete", true, EpdFontFamily::BOLD);
-    renderer.drawCenteredText(UI_10_FONT_ID, top + height + 10, "Press and hold power button to turn back on");
+    renderer.drawCenteredText(UI_10_FONT_ID, top + height + metrics.verticalSpacing,
+                              "Press and hold power button to turn back on");
   }
 
   renderer.displayBuffer();
