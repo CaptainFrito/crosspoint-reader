@@ -295,6 +295,7 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int tileWidth = rect.width - 2 * LyraMetrics::values.contentSidePadding;
   const int tileHeight = rect.height;
   const int tileY = rect.y;
+  const int titleLines = 3;
   const bool hasContinueReading = !recentBooks.empty();
   if (coverWidth == 0) {
     coverWidth = LyraMetrics::values.homeCoverHeight * 0.6;
@@ -356,11 +357,23 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
                                hPaddingInSelection, cornerRadius, false, false, true, true, Color::LightGray);
     }
 
-    auto title = renderer.truncatedText(UI_12_FONT_ID, book.title.c_str(), textWidth, EpdFontFamily::BOLD);
+    //auto title = renderer.truncatedText(UI_12_FONT_ID, book.title.c_str(), textWidth, EpdFontFamily::BOLD);
+    auto title = renderer.wrappedText(UI_12_FONT_ID, book.title.c_str(), textWidth, titleLines, EpdFontFamily::BOLD);
     auto author = renderer.truncatedText(UI_10_FONT_ID, book.author.c_str(), textWidth);
     auto bookTitleHeight = renderer.getTextHeight(UI_12_FONT_ID);
-    renderer.drawText(UI_12_FONT_ID, tileX + hPaddingInSelection + coverWidth + LyraMetrics::values.verticalSpacing,
-                      tileY + tileHeight / 2 - bookTitleHeight, title.c_str(), true, EpdFontFamily::BOLD);
+    auto totalTitleTextHeight = title.size() * bookTitleHeight;
+    int startY = tileY + tileHeight / 2;
+
+    for (size_t i = 0; i < title.size(); ++i)
+    {
+      int y = startY - (title.size() - i) * bookTitleHeight;  // move upward
+      renderer.drawText(UI_12_FONT_ID,
+                        tileX + hPaddingInSelection + coverWidth + LyraMetrics::values.verticalSpacing,
+                        y,
+                        title[i].c_str(),
+                        true,
+                        EpdFontFamily::BOLD);
+    }
     renderer.drawText(UI_10_FONT_ID, tileX + hPaddingInSelection + coverWidth + LyraMetrics::values.verticalSpacing,
                       tileY + tileHeight / 2 + 5, author.c_str(), true);
   }
