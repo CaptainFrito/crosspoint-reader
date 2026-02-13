@@ -51,9 +51,7 @@ struct ThemeMetrics {
   int buttonHintsHeight;
   int sideButtonHintsWidth;
 
-  int versionTextRightX;
-  int versionTextY;
-
+  int progressBarHeight;
   int bookProgressBarHeight;
 };
 
@@ -82,7 +80,7 @@ constexpr ThemeMetrics values = {.batteryWidth = 15,
                                  .homeRecentBooksCount = 1,
                                  .buttonHintsHeight = 40,
                                  .sideButtonHintsWidth = 30,
-                                 .versionTextRightX = 20,
+                                 .progressBarHeight = 16,
                                  .bookProgressBarHeight = 4};
 }
 
@@ -100,10 +98,12 @@ class BaseTheme {
                         const std::function<std::string(int index)>& rowTitle,
                         const std::function<std::string(int index)>& rowSubtitle = nullptr,
                         const std::function<std::string(int index)>& rowIcon = nullptr,
-                        const std::function<std::string(int index)>& rowValue = nullptr) const;
+                        const std::function<std::string(int index)>& rowValue = nullptr,
+                        bool highlightValue = false) const;
   virtual void drawHeader(const GfxRenderer& renderer, Rect rect, const char* title,
                           const char* subtitle = nullptr) const;
-  virtual void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label) const;
+  virtual void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label,
+                             const char* rightLabel = nullptr) const;
   virtual void drawTabBar(const GfxRenderer& renderer, Rect rect, const std::vector<TabInfo>& tabs,
                           bool selected) const;
   virtual void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
