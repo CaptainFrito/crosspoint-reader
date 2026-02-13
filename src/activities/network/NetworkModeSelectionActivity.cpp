@@ -14,6 +14,11 @@ const char* MENU_DESCRIPTIONS[MENU_ITEM_COUNT] = {
     "Use Calibre wireless device transfers",
     "Create a WiFi network others can join",
 };
+const char* MENU_ICONS[MENU_ITEM_COUNT] = {
+    "wifi",
+    "OPDS Browser",
+    "hotspot",
+};
 }  // namespace
 
 void NetworkModeSelectionActivity::taskTrampoline(void* param) {
@@ -109,8 +114,8 @@ void NetworkModeSelectionActivity::render() const {
   const int contentHeight = pageHeight - contentTop - metrics.buttonHintsHeight - metrics.verticalSpacing * 2;
   GUI.drawList(
       renderer, Rect{0, contentTop, pageWidth, contentHeight}, static_cast<int>(MENU_ITEM_COUNT), selectedIndex,
-      [this](int index) { return MENU_ITEMS[index]; }, [this](int index) { return MENU_DESCRIPTIONS[index]; }, nullptr,
-      nullptr);
+      [this](int index) { return MENU_ITEMS[index]; }, [this](int index) { return MENU_DESCRIPTIONS[index]; },
+      [this](int index) { return MENU_ICONS[index]; }, nullptr);
 
   // Draw help text at bottom
   const auto labels = mappedInput.mapLabels("« Back", "Select", "Up", "Down");

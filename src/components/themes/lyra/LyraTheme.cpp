@@ -3,12 +3,26 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 
 #include "Battery.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
+#include "components/icons/book.h"
+#include "components/icons/book24.h"
+#include "components/icons/cover.h"
+#include "components/icons/folder.h"
+#include "components/icons/folder24.h"
+#include "components/icons/hotspot.h"
+#include "components/icons/image24.h"
+#include "components/icons/library.h"
+#include "components/icons/recent.h"
+#include "components/icons/settings2.h"
+#include "components/icons/text24.h"
+#include "components/icons/transfer.h"
+#include "components/icons/wifi.h"
 #include "fontIds.h"
 #include "util/StringUtils.h"
 
@@ -20,7 +34,29 @@ constexpr int cornerRadius = 6;
 constexpr int topHintButtonY = 345;
 constexpr int maxSubtitleWidth = 100;
 constexpr int maxListValueWidth = 200;
+constexpr int mainMenuIconSize = 32;
+constexpr int listIconSize = 24;
+constexpr int mainMenuColumns = 2;
 int coverWidth = 0;
+
+const uint8_t* iconForName(const std::string& iconName, int size) {
+  if (size == 24) {
+    if (iconName == "Folder") return Folder24Icon;
+    if (iconName == "epub" || iconName == "xtc" || iconName == "xtch") return Book24Icon;
+    if (iconName == "txt") return Text24Icon;
+    if (iconName == "bmp") return Image24Icon;
+  } else if (size == 32) {
+    if (iconName == "epub" || iconName == "xtc" || iconName == "xtch") return BookIcon;
+    if (iconName == "Browse Files") return FolderIcon;
+    if (iconName == "Recents") return RecentIcon;
+    if (iconName == "Settings") return Settings2Icon;
+    if (iconName == "File Transfer") return TransferIcon;
+    if (iconName == "OPDS Browser") return LibraryIcon;
+    if (iconName == "wifi") return WifiIcon;
+    if (iconName == "hotspot") return HotspotIcon;
+  }
+  return nullptr;
+}
 }  // namespace
 
 void LyraTheme::drawBattery(const GfxRenderer& renderer, Rect rect, const bool showPercentage,
@@ -178,10 +214,21 @@ void LyraTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
                              Color::LightGray);
   }
 
+  int textX = rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection;
+  int textWidth = contentWidth - LyraMetrics::values.contentSidePadding * 2 - hPaddingInSelection * 2;
+  int iconSize;
+  if (rowIcon != nullptr) {
+    iconSize = (rowSubtitle != nullptr) ? mainMenuIconSize : listIconSize;
+    textX += iconSize + hPaddingInSelection;
+    textWidth -= iconSize + hPaddingInSelection;
+  }
+
   // Draw all items
   const auto pageStartIndex = selectedIndex / pageItems * pageItems;
+  int iconY = (rowSubtitle != nullptr) ? 16 : 10;
   for (int i = pageStartIndex; i < itemCount && i < pageStartIndex + pageItems; i++) {
     const int itemY = rect.y + (i % pageItems) * rowHeight;
+    int rowTextWidth = textWidth;
 
     // Draw name
     int valueWidth = 0;
@@ -190,19 +237,27 @@ void LyraTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
       valueText = rowValue(i);
       valueText = renderer.truncatedText(UI_10_FONT_ID, valueText.c_str(), maxListValueWidth);
       valueWidth = renderer.getTextWidth(UI_10_FONT_ID, valueText.c_str()) + hPaddingInSelection;
+      rowTextWidth -= valueWidth;
     }
-    int textWidth = contentWidth - LyraMetrics::values.contentSidePadding * 2 - hPaddingInSelection * 2 - valueWidth;
+
     auto itemName = rowTitle(i);
-    auto item = renderer.truncatedText(UI_10_FONT_ID, itemName.c_str(), textWidth);
-    renderer.drawText(UI_10_FONT_ID, rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection * 2,
-                      itemY + 6, item.c_str(), true);
+    auto item = renderer.truncatedText(UI_10_FONT_ID, itemName.c_str(), rowTextWidth);
+    renderer.drawText(UI_10_FONT_ID, textX, itemY + 7, item.c_str(), true);
+
+    if (rowIcon != nullptr) {
+      std::string iconName = rowIcon(i);
+      const uint8_t* iconBitmap = iconForName(iconName, iconSize);
+      if (iconBitmap != nullptr) {
+        renderer.drawIcon(iconBitmap, rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection,
+                          itemY + iconY, iconSize, iconSize);
+      }
+    }
 
     if (rowSubtitle != nullptr) {
       // Draw subtitle
       std::string subtitleText = rowSubtitle(i);
-      auto subtitle = renderer.truncatedText(SMALL_FONT_ID, subtitleText.c_str(), textWidth);
-      renderer.drawText(SMALL_FONT_ID, rect.x + LyraMetrics::values.contentSidePadding + hPaddingInSelection * 2,
-                        itemY + 30, subtitle.c_str(), true);
+      auto subtitle = renderer.truncatedText(SMALL_FONT_ID, subtitleText.c_str(), rowTextWidth);
+      renderer.drawText(SMALL_FONT_ID, textX, itemY + 30, subtitle.c_str(), true);
     }
 
     // Draw value
@@ -329,8 +384,13 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       }
 
       if (!hasCover) {
+        // Render empty cover
         renderer.drawRect(tileX + hPaddingInSelection, tileY + hPaddingInSelection, coverWidth,
-                          LyraMetrics::values.homeCoverHeight);
+                          LyraMetrics::values.homeCoverHeight, true);
+        renderer.fillRect(tileX + hPaddingInSelection,
+                          tileY + hPaddingInSelection + (LyraMetrics::values.homeCoverHeight / 3), coverWidth,
+                          2 * LyraMetrics::values.homeCoverHeight / 3, true);
+        renderer.drawIcon(CoverIcon, tileX + hPaddingInSelection + 24, tileY + hPaddingInSelection + 24, 32, 32);
       }
 
       coverBufferStored = storeCoverBuffer();
@@ -390,12 +450,18 @@ void LyraTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount
       renderer.fillRoundedRect(tileRect.x, tileRect.y, tileRect.width, tileRect.height, cornerRadius, Color::LightGray);
     }
 
+    int textX = tileRect.x + 16;
+    const int textY = tileRect.y + 16;
     const char* label = buttonLabel(i).c_str();
-    const int textX = tileRect.x + 16;
-    const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
-    const int textY = tileRect.y + (LyraMetrics::values.menuRowHeight - lineHeight) / 2;
 
-    // Invert text when the tile is selected, to contrast with the filled background
+    if (rowIcon != nullptr) {
+      const uint8_t* icon = iconForName(label, mainMenuIconSize);
+      if (icon != nullptr) {
+        renderer.drawIcon(icon, textX, textY + 3, mainMenuIconSize, mainMenuIconSize);
+        textX += mainMenuIconSize + hPaddingInSelection + 2;
+      }
+    }
+
     renderer.drawText(UI_12_FONT_ID, textX, textY, label, true);
   }
 }
