@@ -152,7 +152,7 @@ void WifiSelectionActivity::processWifiScanResults() {
   // Sort: saved-password networks first, then by signal strength (strongest first)
   std::sort(networks.begin(), networks.end(), [](const WifiNetworkInfo& a, const WifiNetworkInfo& b) {
     if (a.hasSavedPassword != b.hasSavedPassword) {
-      return a.hasSavedPassword && !b.hasSavedPassword;
+      return a.hasSavedPassword;
     }
     return a.rssi > b.rssi;
   });
@@ -527,15 +527,13 @@ void WifiSelectionActivity::renderNetworkList() const {
     int contentTop = metrics.topPadding + metrics.headerHeight + metrics.tabBarHeight + metrics.verticalSpacing;
     int contentHeight = pageHeight - contentTop - metrics.buttonHintsHeight - metrics.verticalSpacing * 2;
     GUI.drawList(
-        renderer, Rect{0, contentTop, pageWidth, contentHeight},
-        static_cast<int>(networks.size()), selectedNetworkIndex,
-        [this](int index) { return networks[index].ssid; }, nullptr, nullptr, 
-      [this](int index) { 
-        auto network = networks[index];
-        return std::string(network.hasSavedPassword ? "+ " : "")
-         + (network.isEncrypted ? "* " : "")
-         + getSignalStrengthIndicator(network.rssi);
-      });
+        renderer, Rect{0, contentTop, pageWidth, contentHeight}, static_cast<int>(networks.size()),
+        selectedNetworkIndex, [this](int index) { return networks[index].ssid; }, nullptr, nullptr,
+        [this](int index) {
+          auto network = networks[index];
+          return std::string(network.hasSavedPassword ? "+ " : "") + (network.isEncrypted ? "* " : "") +
+                 getSignalStrengthIndicator(network.rssi);
+        });
   }
 
   GUI.drawHelpText(renderer,
