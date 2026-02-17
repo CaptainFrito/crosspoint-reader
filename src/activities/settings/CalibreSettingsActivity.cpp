@@ -136,7 +136,8 @@ void CalibreSettingsActivity::render(Activity::RenderLock&&) {
           return (strlen(SETTINGS.opdsPassword) > 0) ? "******" : tr(STR_NOT_SET);
         }
         return tr(STR_NOT_SET);
-      });
+      },
+      true);
 
   // Draw help text at bottom
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

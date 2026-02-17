@@ -163,7 +163,8 @@ void KOReaderSettingsActivity::render(Activity::RenderLock&&) {
           return KOREADER_STORE.hasCredentials() ? "" : std::string("[") + tr(STR_SET_CREDENTIALS_FIRST) + "]";
         }
         return tr(STR_NOT_SET);
-      });
+      },
+      true);
 
   // Draw help text at bottom
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

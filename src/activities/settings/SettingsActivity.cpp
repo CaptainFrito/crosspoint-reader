@@ -249,7 +249,8 @@ void SettingsActivity::render(Activity::RenderLock&&) {
           valueText = std::to_string(SETTINGS.*(setting.valuePtr));
         }
         return valueText;
-      });
+      },
+      true);
 
   // Draw help text
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
