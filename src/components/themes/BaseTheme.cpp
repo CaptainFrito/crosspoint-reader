@@ -52,10 +52,7 @@ void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bo
 
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
-    if (alignRight) {
-      x -= renderer.getTextWidth(SMALL_FONT_ID, percentageText.c_str());
-    }
-    renderer.drawText(SMALL_FONT_ID, x + batteryPercentSpacing + BaseMetrics::values.batteryWidth, rect.y,
+    renderer.drawText(SMALL_FONT_ID, rect.x + batteryPercentSpacing + BaseMetrics::values.batteryWidth, rect.y,
                       percentageText.c_str());
   }
 
