@@ -537,7 +537,7 @@ void WifiSelectionActivity::renderNetworkList() const {
   }
 
   GUI.drawHelpText(renderer,
-      Rect{0, pageHeight - metrics.buttonHintsHeight - 26, pageWidth, 20},
+      Rect{0, pageHeight - metrics.buttonHintsHeight - metrics.contentSidePadding - 15, pageWidth, 20},
       tr(STR_NETWORK_LEGEND));
 
   const bool hasSavedPassword = !networks.empty() && networks[selectedNetworkIndex].hasSavedPassword;
