@@ -5,14 +5,10 @@
 
 #include <memory>
 
-#include "MappedInputManager.h"
 #include "RecentBooksStore.h"
 #include "components/themes/BaseTheme.h"
 #include "components/themes/lyra/Lyra3CoversTheme.h"
 #include "components/themes/lyra/LyraTheme.h"
-namespace {
-constexpr int SKIP_PAGE_MS = 700;
-}  // namespace
 
 UITheme UITheme::instance;
 
