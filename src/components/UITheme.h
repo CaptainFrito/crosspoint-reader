@@ -16,6 +16,7 @@ class UITheme {
 
   const ThemeMetrics& getMetrics() { return *currentMetrics; }
   const BaseTheme& getTheme() { return *currentTheme; }
+  Rect getScreenSafeArea(const GfxRenderer& renderer, bool hasFrontButtonHints = false, bool hasSideButtonHints = false);
   void reload();
   void setTheme(CrossPointSettings::UI_THEME type);
   static int getNumberOfItemsPerPage(const GfxRenderer& renderer, bool hasHeader, bool hasTabBar, bool hasButtonHints,
