@@ -57,23 +57,6 @@ void EpubReaderMenuActivity::loop() {
 }
 
 void EpubReaderMenuActivity::render(Activity::RenderLock&&) {
-  // renderer.clearScreen();
-  // const auto pageWidth = renderer.getScreenWidth();
-  // const auto orientation = renderer.getOrientation();
-  // // Landscape orientation: button hints are drawn along a vertical edge, so we
-  // // reserve a horizontal gutter to prevent overlap with menu content.
-  // const bool isLandscapeCw = orientation == GfxRenderer::Orientation::LandscapeClockwise;
-  // const bool isLandscapeCcw = orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
-  // // Inverted portrait: button hints appear near the logical top, so we reserve
-  // // vertical space to keep the header and list clear.
-  // const bool isPortraitInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
-  // const int hintGutterWidth = (isLandscapeCw || isLandscapeCcw) ? 30 : 0;
-  // // Landscape CW places hints on the left edge; CCW keeps them on the right.
-  // const int contentX = isLandscapeCw ? hintGutterWidth : 0;
-  // const int contentWidth = pageWidth - hintGutterWidth;
-  // const int hintGutterHeight = isPortraitInverted ? 50 : 0;
-  // const int contentY = hintGutterHeight;
-
   renderer.clearScreen();
 
   auto metrics = UITheme::getInstance().getMetrics();
