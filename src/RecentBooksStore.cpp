@@ -12,7 +12,7 @@
 #include "util/StringUtils.h"
 
 namespace {
-constexpr uint8_t RECENT_BOOKS_FILE_VERSION = 3;
+constexpr uint8_t RECENT_BOOKS_FILE_VERSION = 4;
 constexpr char RECENT_BOOKS_FILE_BIN[] = "/.crosspoint/recent.bin";
 constexpr char RECENT_BOOKS_FILE_JSON[] = "/.crosspoint/recent.json";
 constexpr char RECENT_BOOKS_FILE_BAK[] = "/.crosspoint/recent.bin.bak";
@@ -22,7 +22,7 @@ constexpr int MAX_RECENT_BOOKS = 10;
 RecentBooksStore RecentBooksStore::instance;
 
 void RecentBooksStore::addBook(const std::string& path, const std::string& title, const std::string& author,
-                               const std::string& coverBmpPath) {
+                               const std::string& coverBmpPath, float progress) {
   // Remove existing entry if present
   auto it =
       std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
@@ -31,7 +31,7 @@ void RecentBooksStore::addBook(const std::string& path, const std::string& title
   }
 
   // Add to front
-  recentBooks.insert(recentBooks.begin(), {path, title, author, coverBmpPath});
+  recentBooks.insert(recentBooks.begin(), {path, title, author, coverBmpPath, progress});
 
   // Trim to max size
   if (recentBooks.size() > MAX_RECENT_BOOKS) {
@@ -42,7 +42,7 @@ void RecentBooksStore::addBook(const std::string& path, const std::string& title
 }
 
 void RecentBooksStore::updateBook(const std::string& path, const std::string& title, const std::string& author,
-                                  const std::string& coverBmpPath) {
+                                  const std::string& coverBmpPath, float progress) {
   auto it =
       std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
   if (it != recentBooks.end()) {
@@ -50,6 +50,7 @@ void RecentBooksStore::updateBook(const std::string& path, const std::string& ti
     book.title = title;
     book.author = author;
     book.coverBmpPath = coverBmpPath;
+    book.progress = progress;
     saveToFile();
   }
 }
@@ -136,12 +137,12 @@ bool RecentBooksStore::loadFromBinaryFile() {
         std::string title, author;
         serialization::readString(inputFile, title);
         serialization::readString(inputFile, author);
-        recentBooks.push_back({path, title, author, ""});
+        recentBooks.push_back({path, title, author, "", -1.0f});
       } else {
         recentBooks.push_back(book);
       }
     }
-  } else if (version == 3) {
+  } else if (version >= 3) {
     uint8_t count;
     serialization::readPod(inputFile, count);
 
@@ -151,10 +152,18 @@ bool RecentBooksStore::loadFromBinaryFile() {
 
     for (uint8_t i = 0; i < count; i++) {
       std::string path, title, author, coverBmpPath;
+      float progress;
       serialization::readString(inputFile, path);
       serialization::readString(inputFile, title);
       serialization::readString(inputFile, author);
       serialization::readString(inputFile, coverBmpPath);
+      if (version >= 4) {
+        std::string progressStr;
+        serialization::readString(inputFile, progressStr);
+        progress = std::stof(progressStr);
+      } else {
+        progress = -1.0f;  // Default value for older versions
+      }
 
       // Omit books with missing title (e.g. saved before metadata was available)
       if (title.empty()) {
@@ -162,7 +171,7 @@ bool RecentBooksStore::loadFromBinaryFile() {
         continue;
       }
 
-      recentBooks.push_back({path, title, author, coverBmpPath});
+      recentBooks.push_back({path, title, author, coverBmpPath, progress});
     }
 
     if (omitted > 0) {
